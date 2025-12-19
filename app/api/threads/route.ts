@@ -3,12 +3,9 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { Threads } from "@/db/repository";
 
-
 export async function GET() {
   try {
-    console.log("GET /api/threads called");
     const threads = Threads.getAll();
-    console.log("Threads found:", threads.length);
     return NextResponse.json(threads);
   } catch (error) {
     console.error("GET /api/threads error:", error);
@@ -21,7 +18,6 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("POST /api/threads called");
     const { title } = await req.json();
 
     if (!title || typeof title !== 'string' || title.trim() === '') {

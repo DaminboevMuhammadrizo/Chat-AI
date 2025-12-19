@@ -1,4 +1,3 @@
-// app/page.tsx - 简化版
 'use client';
 
 import { useState } from 'react';
@@ -6,17 +5,18 @@ import ThreadList from "@/components/ThreadList";
 import Chat from '@/components/Chat';
 
 export default function Page() {
-  const [threadId, setThreadId] = useState<string | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-[#0F0F0F]">
       <ThreadList
-        activeThreadId={threadId}
-        onThreadSelect={setThreadId}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        activeThreadId={activeThreadId}
+        onThreadSelect={setActiveThreadId}
       />
-      <Chat
-        threadId={threadId}
-      />
+      <Chat threadId={activeThreadId} />
     </div>
   );
 }

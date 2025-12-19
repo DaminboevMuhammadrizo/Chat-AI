@@ -1,244 +1,203 @@
 // components/ThreadList.tsx
-import React, { useState, useEffect } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Search, MessageSquare, Plus, Trash2, ChevronRight, Calendar } from 'lucide-react';
-import { cn } from '@/lib/utils';
+'use client';
+
+import { MessageSquare, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface Thread {
   id: string;
   title: string;
-  created_at: string;
-  message_count: number;
-  preview?: string;
+  created_at: number;
 }
 
 interface ThreadListProps {
-  activeThreadId: string | null;
-  onThreadSelect: (threadId: string | null) => void;
-  onNewThread?: () => void;
-  onDeleteThread?: (threadId: string) => void;
-  className?: string;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  activeThreadId?: string | null;
+  onThreadSelect?: (threadId: string) => void;
 }
 
-const ThreadList: React.FC<ThreadListProps> = ({
+export default function ThreadList({
+  isCollapsed,
+  onToggleCollapse,
   activeThreadId,
-  onThreadSelect,
-  onNewThread,
-  onDeleteThread,
-  className
-}) => {
-  const [threads, setThreads] = useState<Thread[]>([
-    {
-      id: '1',
-      title: 'Sales Data Analysis Q1',
-      created_at: '2 hours ago',
-      message_count: 12,
-      preview: 'Can you analyze the sales trends from...'
-    },
-    {
-      id: '2',
-      title: 'Excel Formula Issue',
-      created_at: 'Yesterday',
-      message_count: 8,
-      preview: 'The VLOOKUP formula is not working...'
-    },
-    {
-      id: '3',
-      title: 'Financial Report Discussion',
-      created_at: 'Jan 13',
-      message_count: 15,
-      preview: 'Here are the quarterly financials...'
-    },
-    {
-      id: '4',
-      title: 'Marketing Campaign Review',
-      created_at: 'Jan 12',
-      message_count: 6,
-      preview: 'The campaign performance metrics show...'
-    },
-    {
-      id: '5',
-      title: 'Budget Planning Meeting',
-      created_at: 'Jan 11',
-      message_count: 20,
-      preview: 'We need to allocate resources for...'
-    },
-  ]);
+  onThreadSelect
+}: ThreadListProps) {
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  // Threadlarni serverdan olish
+  useEffect(() => {
+    fetchThreads();
+  }, []);
 
-  const filteredThreads = threads.filter(thread =>
-    thread.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    thread.preview?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleNewThread = () => {
-    const newThread: Thread = {
-      id: Date.now().toString(),
-      title: `New Conversation ${threads.length + 1}`,
-      created_at: 'Just now',
-      message_count: 0,
-      preview: 'Start a new conversation...'
-    };
-    setThreads([newThread, ...threads]);
-    onThreadSelect(newThread.id);
-
-    if (onNewThread) {
-      onNewThread();
+  const fetchThreads = async () => {
+    try {
+      const response = await fetch('/api/threads');
+      if (response.ok) {
+        const data = await response.json();
+        setThreads(data);
+      }
+    } catch (error) {
+      console.error('Error fetching threads:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleThreadSelect = (threadId: string) => {
-    onThreadSelect(threadId);
-  };
+  const handleNewThread = async () => {
+    try {
+      const response = await fetch('/api/threads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New Chat' })
+      });
 
-  const handleDeleteThread = (e: React.MouseEvent, threadId: string) => {
-    e.stopPropagation();
-    if (onDeleteThread) {
-      onDeleteThread(threadId);
-      setThreads(prev => prev.filter(t => t.id !== threadId));
+      if (response.ok) {
+        const newThread = await response.json();
+        setThreads(prev => [newThread, ...prev]);
 
-      // If we're deleting the active thread, clear it
-      if (activeThreadId === threadId) {
-        onThreadSelect(null);
+        // Yangi threadni tanlash
+        if (onThreadSelect) {
+          onThreadSelect(newThread.id);
+        }
       }
-    } else {
-      setThreads(prev => prev.filter(t => t.id !== threadId));
-
-      // If we're deleting the active thread, clear it
-      if (activeThreadId === threadId) {
-        onThreadSelect(null);
-      }
+    } catch (error) {
+      console.error('Error creating thread:', error);
     }
   };
 
-  return (
-    <div className={cn("flex flex-col h-full border-r bg-white w-64", className)}>
-      {/* Header */}
-      <div className="p-4 border-b">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Chats</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleNewThread}
-            className="h-8 px-3 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            New Chat
-          </Button>
-        </div>
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-gray-50 border-gray-200 focus:bg-white"
-          />
-        </div>
-      </div>
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
 
-      {/* Threads List */}
-      <ScrollArea className="flex-1">
-        <div className="p-2">
-          {filteredThreads.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p>No conversations found</p>
-              <p className="text-sm mt-1">Try a different search term</p>
+  // Collapsed view
+  if (isCollapsed) {
+    return (
+      <div className="w-12 bg-[#171717] border-r border-gray-800 flex flex-col">
+        <button
+          onClick={onToggleCollapse}
+          className="h-12 border-b border-gray-800 hover:bg-gray-800 transition-colors"
+        >
+          <ChevronRight className="h-5 w-5 text-gray-400 mx-auto" />
+        </button>
+        <button
+          onClick={handleNewThread}
+          className="h-12 hover:bg-gray-800 transition-colors"
+        >
+          <Plus className="h-5 w-5 text-gray-400 mx-auto" />
+        </button>
+        <div className="flex-1 pt-4 overflow-y-auto">
+          {loading ? (
+            <div className="flex justify-center py-4">
+              <div className="w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : (
-            filteredThreads.map((thread) => (
-              <div
+            threads.slice(0, 8).map((thread) => (
+              <button
                 key={thread.id}
-                className={cn(
-                  "group relative flex flex-col p-3 rounded-lg cursor-pointer transition-all mb-1 border hover:border-blue-100",
+                onClick={() => onThreadSelect && onThreadSelect(thread.id)}
+                className={`h-8 w-8 mx-2 my-1 rounded transition-colors flex items-center justify-center ${
                   activeThreadId === thread.id
-                    ? "bg-blue-50 border-blue-200 shadow-sm"
-                    : "border-transparent hover:bg-gray-50"
-                )}
-                onClick={() => handleThreadSelect(thread.id)}
+                    ? "bg-gray-700 text-white"
+                    : "text-gray-500 hover:bg-gray-800 hover:text-gray-300"
+                }`}
+                title={thread.title}
               >
-                <div className="flex items-start justify-between">
-                  {/* Thread Icon and Title */}
-                  <div className="flex items-start space-x-3 flex-1 min-w-0">
-                    <div className={cn(
-                      "mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-                      activeThreadId === thread.id
-                        ? "bg-blue-100 text-blue-600"
-                        : "bg-gray-100 text-gray-600"
-                    )}>
-                      <MessageSquare className="h-4 w-4" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className={cn(
-                          "font-medium truncate",
-                          activeThreadId === thread.id
-                            ? "text-blue-900"
-                            : "text-gray-900"
-                        )}>
-                          {thread.title}
-                        </h3>
-                      </div>
-
-                      {/* Preview */}
-                      {thread.preview && (
-                        <p className="text-sm text-gray-500 truncate mt-1">
-                          {thread.preview}
-                        </p>
-                      )}
-
-                      {/* Metadata */}
-                      <div className="flex items-center space-x-3 mt-2">
-                        <span className="flex items-center text-xs text-gray-400">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {thread.created_at}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {thread.message_count} messages
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 hover:bg-red-100 hover:text-red-600"
-                      onClick={(e) => handleDeleteThread(e, thread.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                    <ChevronRight className={cn(
-                      "h-4 w-4 text-gray-400",
-                      activeThreadId === thread.id && "text-blue-500"
-                    )} />
-                  </div>
-                </div>
-              </div>
+                <MessageSquare className="h-4 w-4" />
+              </button>
             ))
           )}
         </div>
-      </ScrollArea>
+      </div>
+    );
+  }
 
-      {/* Footer Stats */}
-      <div className="p-3 border-t text-xs text-gray-500 bg-gray-50">
-        <div className="flex justify-between">
-          <span>Total: {threads.length} chats</span>
-          <span>{threads.reduce((acc, t) => acc + t.message_count, 0)} messages</span>
+  // Expanded view
+  return (
+    <div className="w-64 bg-[#171717] border-r border-gray-800 flex flex-col">
+      <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+        <button
+          onClick={onToggleCollapse}
+          className="p-1.5 hover:bg-gray-800 rounded transition-colors"
+        >
+          <ChevronLeft className="h-5 w-5 text-gray-400" />
+        </button>
+        <span className="text-gray-300 font-medium">Chats</span>
+        <button
+          onClick={handleNewThread}
+          className="p-1.5 hover:bg-gray-800 rounded transition-colors"
+        >
+          <Plus className="h-5 w-5 text-gray-400" />
+        </button>
+      </div>
+
+      <button
+        onClick={handleNewThread}
+        className="mx-4 my-3 px-3 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 text-sm font-medium flex items-center justify-center transition-colors"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        New Chat
+      </button>
+
+      <div className="flex-1 overflow-y-auto px-3">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="w-8 h-8 border-3 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : threads.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 text-sm">
+            No conversations yet
+          </div>
+        ) : (
+          <div className="space-y-1 pb-4">
+            {threads.map((thread) => (
+              <button
+                key={thread.id}
+                onClick={() => onThreadSelect && onThreadSelect(thread.id)}
+                className={`w-full text-left p-3 rounded-lg transition-colors ${
+                  activeThreadId === thread.id
+                    ? "bg-gray-800 border border-gray-700"
+                    : "hover:bg-gray-800/50 border border-transparent"
+                }`}
+              >
+                <div className="flex items-start space-x-3">
+                  <MessageSquare className={`h-4 w-4 mt-0.5 ${
+                    activeThreadId === thread.id ? "text-gray-300" : "text-gray-500"
+                  }`} />
+
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm font-medium truncate ${
+                      activeThreadId === thread.id ? "text-white" : "text-gray-300"
+                    }`}>
+                      {thread.title}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate mt-0.5">
+                      {formatTime(thread.created_at)}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="p-3 border-t border-gray-800">
+        <div className="text-xs text-gray-500 text-center">
+          {threads.length} conversation{threads.length !== 1 ? 's' : ''}
         </div>
       </div>
     </div>
   );
-};
-
-export default ThreadList;
+}

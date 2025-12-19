@@ -1,8 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { Messages } from "@/db/repository.js";
-import { Role } from "@/db/roles";
+import { Messages } from "@/db/repository";
+import type { Role } from "@/db/roles";
 
 export async function GET(req: NextRequest) {
   const threadId = req.nextUrl.searchParams.get("threadId");
@@ -10,8 +10,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "threadId is required" }, { status: 400 });
   }
 
-  const messages = Messages.getByThread(threadId);
-  return NextResponse.json(messages);
+  try {
+    const messages = Messages.getByThread(threadId);
+    return NextResponse.json(messages);
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch messages" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -21,6 +29,13 @@ export async function POST(req: NextRequest) {
     if (!threadId || !content || !role) {
       return NextResponse.json(
         { error: "threadId, content, role are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!['user', 'assistant'].includes(role)) {
+      return NextResponse.json(
+        { error: "role must be 'user' or 'assistant'" },
         { status: 400 }
       );
     }
