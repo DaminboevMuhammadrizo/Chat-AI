@@ -53,9 +53,9 @@ export default function Chat({ threadId, onThreadTitleUpdate }: ChatProps) {
     }, [messages, streamingText, isAutoScrolling]);
 
     useEffect(() => {
-        if (messages.length > 0) {
+        if (messages.length > 0)
             scrollToBottom();
-        }
+
     }, [messages.length]);
 
     useEffect(() => {
