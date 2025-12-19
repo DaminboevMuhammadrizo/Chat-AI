@@ -21,8 +21,6 @@ export function migrate() {
       FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE
     );
   `);
-
-  console.log("✅ Database initialized with better-sqlite3");
 }
 
 migrate();
